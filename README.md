@@ -2,7 +2,7 @@
 
 A simple **Spring Boot** application that fetches real-time weather data using **OpenWeather API** and displays it in a user-friendly interface.  
 
-![Weather App](https://github.com/Hhari1234/Weather-app/blob/main/screenshots/weather-app.png)
+![Weather App](weather%20app.png)
 
 ## 🚀 Features
 - ✅ Fetches current weather for any city  
