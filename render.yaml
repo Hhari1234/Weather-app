@@ -1,17 +1,17 @@
-# Render blueprint - deploys the whole app (Thymeleaf + REST API) as ONE
-# Spring Boot web service. See README "Deployment" section for manual steps.
+# Render Blueprint - deploys the whole app (Thymeleaf + REST API) as ONE
+# Docker container running a Spring Boot JAR. See README "Deployment" section.
 #
 # After the first deploy, set the WEATHER_API_KEY environment variable in the
 # Render dashboard (Env Vars) and re-deploy.
 services:
   - type: web
     name: weather-app
-    runtime: java
-    region: frankfurt # or ohio / singapore - pick the region closest to your users
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    region: frankfurt
     plan: free
-    buildCommand: chmod +x mvnw && ./mvnw -B -DskipTests package
-    startCommand: java -jar target/weather-app.jar
-    healthCheckPath: /
+    branch: main
+    healthCheckPath: /actuator/health
     envVars:
       - key: WEATHER_API_KEY
-        sync: false # set manually in the dashboard - never commit keys
+        sync: false
