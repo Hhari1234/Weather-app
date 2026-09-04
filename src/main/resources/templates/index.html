@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Weather App - a production Spring Boot + Thymeleaf weather dashboard powered by OpenWeather.">
+    <title>Weather App · Live Forecast</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='0.9em' font-size='90'%3E%F0%9F%8C%A4%EF%B8%8F%3C/text%3E%3C/svg%3E">
+    <link rel="stylesheet" href="/css/style.css">
+    <script>
+        // Apply the saved/system theme before first paint to avoid a flash of the wrong theme.
+        (function () {
+            try {
+                var stored = localStorage.getItem('weather.theme');
+                var theme = (stored === 'dark' || stored === 'light')
+                    ? stored
+                    : (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+                document.documentElement.setAttribute('data-theme', theme);
+            } catch (e) {
+                document.documentElement.setAttribute('data-theme', 'light');
+            }
+        })();
+    </script>
+</head>
+<body>
+<a class="skip-link" href="#searchInput">Skip to search</a>
+
+<header class="app-header">
+    <div class="header-inner">
+        <div class="brand" aria-label="Weather App">
+            <span class="brand-mark" aria-hidden="true">⛅</span>
+            <span class="brand-text">Weather<span class="brand-accent">App</span></span>
+        </div>
+
+        <form class="search-form" id="searchForm" role="search" autocomplete="off">
+            <div class="search-wrap">
+                <svg class="search-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.2" y2="16.2"/></svg>
+                <input id="searchInput" name="city" type="text" class="search-input"
+                       placeholder="Search city… e.g. Hyderabad" aria-label="Search for a city"
+                       aria-autocomplete="list" aria-expanded="false" maxlength="100">
+                <button type="button" class="search-clear" id="searchClear" aria-label="Clear search" hidden>✕</button>
+            </div>
+            <ul class="suggestions" id="suggestions" role="listbox" aria-label="City suggestions" hidden></ul>
+        </form>
+
+        <div class="header-controls">
+            <div class="unit-toggle" role="group" aria-label="Temperature unit">
+                <button type="button" id="unitC" class="unit-btn is-active" aria-pressed="true">°C</button>
+                <button type="button" id="unitF" class="unit-btn" aria-pressed="false">°F</button>
+            </div>
+            <button type="button" id="themeToggle" class="icon-btn" aria-label="Toggle dark / light mode" title="Toggle theme">🌙</button>
+            <button type="button" id="locateBtn" class="locate-btn" title="Use my current location">
+                <span aria-hidden="true">📍</span> Use my location
+            </button>
+        </div>
+    </div>
+</header>
+
+<main class="layout">
+    <!-- ============ Primary column ============ -->
+    <section class="primary" aria-label="Weather dashboard">
+
+        <!-- Empty / welcome state -->
+        <div id="emptyState" class="empty-state">
+            <div class="empty-illustration" aria-hidden="true">🌤️</div>
+            <h2>Welcome to your live weather dashboard</h2>
+            <p>Search any city above, use <strong>📍 Use my location</strong>, or jump straight to a favourite.</p>
+            <div class="quick-chips" id="quickChips" aria-label="Example cities">
+                <button type="button" class="chip" data-city="Hyderabad">Hyderabad</button>
+                <button type="button" class="chip" data-city="Bengaluru">Bengaluru</button>
+                <button type="button" class="chip" data-city="Chennai">Chennai</button>
+                <button type="button" class="chip" data-city="Mumbai">Mumbai</button>
+                <button type="button" class="chip" data-city="Delhi">Delhi</button>
+                <button type="button" class="chip" data-city="London">London</button>
+                <button type="button" class="chip" data-city="New York">New York</button>
+                <button type="button" class="chip" data-city="Tokyo">Tokyo</button>
+            </div>
+        </div>
+
+        <!-- Dashboard (hidden until first data) -->
+        <div id="dashboard" hidden>
+            <!-- Current conditions -->
+            <article class="card hero-card">
+                <div class="hero-top">
+                    <div class="hero-location">
+                        <h1 id="heroCity">—</h1>
+                        <p class="hero-subtitle"><span id="heroDate"></span> · <span id="heroCondition"></span></p>
+                    </div>
+                    <button type="button" id="favBtn" class="fav-btn" aria-pressed="false"
+                            title="Save to favourites" aria-label="Save this city to favourites">☆</button>
+                </div>
+
+                <div class="hero-main">
+                    <div class="hero-temp-wrap">
+                        <img id="heroIcon" class="hero-icon" width="120" height="120" alt="" loading="eager">
+                        <div>
+                            <div class="hero-temp"><span id="heroTemp">—</span><span class="deg">°</span></div>
+                            <p class="hero-feels">Feels like <span id="heroFeels">—</span>°</p>
+                        </div>
+                    </div>
+                    <p class="hero-desc" id="heroDesc">—</p>
+                </div>
+
+                <dl class="detail-grid" id="detailGrid"><!-- filled by JS --></dl>
+
+                <div class="hero-skeleton" aria-hidden="true">
+                    <span class="sk sk-line w60"></span>
+                    <span class="sk sk-circle"></span>
+                    <span class="sk sk-line w40"></span>
+                    <div class="sk-grid">
+                        <span class="sk sk-box"></span><span class="sk sk-box"></span>
+                        <span class="sk sk-box"></span><span class="sk sk-box"></span>
+                        <span class="sk sk-box"></span><span class="sk sk-box"></span>
+                        <span class="sk sk-box"></span><span class="sk sk-box"></span>
+                    </div>
+                </div>
+
+                <p class="updated-note" id="updatedNote" hidden></p>
+            </article>
+
+            <!-- Hourly forecast -->
+            <article class="card section-card">
+                <header class="section-head">
+                    <h2>Hourly forecast</h2>
+                    <span class="section-hint">Next 24 hours</span>
+                </header>
+                <div class="hourly-scroll" id="hourlyStrip" aria-label="Hourly forecast"></div>
+                <div class="strip-skeleton" id="stripSkeleton" aria-hidden="true">
+                    <span class="sk sk-chip"></span><span class="sk sk-chip"></span>
+                    <span class="sk sk-chip"></span><span class="sk sk-chip"></span>
+                    <span class="sk sk-chip"></span><span class="sk sk-chip"></span>
+                </div>
+            </article>
+
+            <!-- Daily forecast -->
+            <article class="card section-card">
+                <header class="section-head">
+                    <h2>Daily forecast</h2>
+                    <span class="section-hint" id="dailyHint"></span>
+                </header>
+                <div class="daily-grid" id="dailyGrid"></div>
+                <div class="daily-skeleton" id="dailySkeleton" aria-hidden="true">
+                    <span class="sk sk-daily"></span><span class="sk sk-daily"></span>
+                    <span class="sk sk-daily"></span><span class="sk sk-daily"></span>
+                    <span class="sk sk-daily"></span><span class="sk sk-daily"></span>
+                </div>
+            </article>
+
+            <!-- Charts -->
+            <article class="card section-card">
+                <header class="section-head">
+                    <h2>Trends</h2>
+                    <span class="section-hint">24h outlook</span>
+                </header>
+                <div class="chart-block">
+                    <h3 class="chart-title">Temperature</h3>
+                    <div class="chart-box"><canvas id="tempChart" aria-label="Temperature chart"></canvas></div>
+                </div>
+                <div class="chart-row">
+                    <div class="chart-block">
+                        <h3 class="chart-title">Precipitation probability</h3>
+                        <div class="chart-box"><canvas id="precipChart" aria-label="Precipitation probability chart"></canvas></div>
+                    </div>
+                    <div class="chart-block">
+                        <h3 class="chart-title">Wind speed</h3>
+                        <div class="chart-box"><canvas id="windChart" aria-label="Wind speed chart"></canvas></div>
+                    </div>
+                </div>
+                <div class="charts-missing" id="chartsMissing" hidden>
+                    Charts appear once live forecast data is available for a location.
+                </div>
+                <div class="charts-skeleton" id="chartsSkeleton" aria-hidden="true">
+                    <span class="sk sk-chart"></span><span class="sk sk-chart"></span>
+                </div>
+            </article>
+        </div>
+    </section>
+
+    <!-- ============ Sidebar ============ -->
+    <aside class="sidebar" aria-label="Favourites and recent searches">
+        <div class="card side-card">
+            <header class="side-head">
+                <h2>⭐ Favourites</h2>
+            </header>
+            <ul id="favList" class="place-list"></ul>
+            <p id="favEmpty" class="side-empty">Nothing saved yet. Tap ☆ on a city card to pin it here.</p>
+        </div>
+
+        <div class="card side-card">
+            <header class="side-head">
+                <h2>🕘 Recent searches</h2>
+                <button type="button" id="clearRecent" class="text-btn" title="Clear search history">Clear</button>
+            </header>
+            <ul id="recentList" class="place-list"></ul>
+            <p id="recentEmpty" class="side-empty">Your recent searches will show up here.</p>
+        </div>
+
+        <div class="card side-card about-card">
+            <h2>About this app</h2>
+            <p>One Spring Boot application serves this page, the REST API and weather data. No separate frontend or backend.</p>
+            <p>Data: <a href="https://openweathermap.org" target="_blank" rel="noopener noreferrer">OpenWeather</a> · °C data is cached briefly to keep things fast.</p>
+        </div>
+    </aside>
+</main>
+
+<footer class="app-footer">
+    <p>Weather App · Spring Boot + Thymeleaf + OpenWeather · © <span th:text="${year}">2026</span></p>
+</footer>
+
+<div class="toast-region" id="toastRegion" role="status" aria-live="polite"></div>
+<noscript>
+    <div class="noscript">This dashboard needs JavaScript enabled to load live weather data.</div>
+</noscript>
+
+<script src="/vendor/chart.umd.min.js" defer></script>
+<script src="/js/weather.js" defer></script>
+</body>
+</html>

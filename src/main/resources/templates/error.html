@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Something went wrong · Weather App</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='0.9em' font-size='90'%3E%F0%9F%8C%A4%EF%B8%8F%3C/text%3E%3C/svg%3E">
+    <link rel="stylesheet" href="/css/style.css">
+    <script>
+        (function () {
+            try {
+                var stored = localStorage.getItem('weather.theme');
+                var theme = (stored === 'dark' || stored === 'light')
+                    ? stored
+                    : (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+                document.documentElement.setAttribute('data-theme', theme);
+            } catch (e) { document.documentElement.setAttribute('data-theme', 'light'); }
+        })();
+    </script>
+</head>
+<body>
+<main class="error-page">
+    <div class="card error-card">
+        <div class="error-code" th:text="${status} ?: 'Error'">500</div>
+        <h1 th:text="${error} ?: 'Unexpected error'">Unexpected error</h1>
+        <p class="error-message" th:text="${message} ?: 'Something went wrong while serving this page. Please try again.'">
+            Something went wrong.
+        </p>
+        <p class="error-detail" th:if="${path}">Path: <code th:text="${path}">/</code></p>
+        <a class="btn-primary" href="/">← Back to the weather dashboard</a>
+    </div>
+</main>
+</body>
+</html>
